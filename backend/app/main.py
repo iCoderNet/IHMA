@@ -1,10 +1,16 @@
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
 from app.core.database import create_tables, AsyncSessionLocal
 from app.routers import auth, sections, appeals, dashboard, bot_admin, districts, bot_webhook, ai_chat, voice
+
+# Built frontend lives at  backend/static/  (vite outDir: '../backend/static')
+STATIC_DIR = Path(__file__).parent.parent / "static"
 
 
 @asynccontextmanager
@@ -72,7 +78,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Routes
+# ── API routes (must be registered BEFORE the SPA catch-all) ────────────────
 app.include_router(auth.router, prefix="/api")
 app.include_router(districts.router, prefix="/api")
 app.include_router(sections.router, prefix="/api")
@@ -87,3 +93,24 @@ app.include_router(voice.router, prefix="/api")
 @app.get("/api/health")
 async def health():
     return {"status": "ok", "app": settings.APP_NAME}
+
+
+# ── Frontend (SPA) serving ───────────────────────────────────────────────────
+# Only activated when `backend/static/` exists (i.e. after `npm run build`).
+# During development Vite's own dev server handles the frontend.
+if STATIC_DIR.is_dir():
+    # Vite assets folder (hashed filenames: index-abc123.js, index-abc123.css …)
+    _assets = STATIC_DIR / "assets"
+    if _assets.is_dir():
+        app.mount("/assets", StaticFiles(directory=_assets), name="vite-assets")
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def spa_fallback(full_path: str):
+        """Serve an actual static file if it exists, otherwise return index.html
+        so that React Router can handle client-side navigation."""
+        # Try exact file first (favicon.ico, robots.txt, manifest.webmanifest …)
+        candidate = STATIC_DIR / full_path
+        if candidate.is_file():
+            return FileResponse(candidate)
+        # SPA fallback
+        return FileResponse(STATIC_DIR / "index.html")
