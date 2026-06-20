@@ -1,8 +1,28 @@
+from typing import Optional
 from sqlalchemy import String, Integer, ForeignKey, DateTime, Text, JSON, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 from datetime import datetime
 from app.core.database import Base
+
+
+class Bolim(Base):
+    """Top-level department that groups related Toifalar (Sections).
+    Example: "Bolalar shuʼbasi" groups NBSH, Yetim bolalar, etc.
+    """
+    __tablename__ = "bolimlar"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)       # Short: Bolalar
+    full_name: Mapped[str] = mapped_column(String(255), nullable=False)  # Full name
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    icon: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    color: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    order: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+    sections: Mapped[list["Section"]] = relationship("Section", back_populates="bolim")
 
 
 class Section(Base):
@@ -17,6 +37,7 @@ class Section(Base):
     color: Mapped[str | None] = mapped_column(String(20), nullable=True)    # tailwind color class
     order: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    bolim_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("bolimlar.id"), nullable=True)
     created_by: Mapped[int | None] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
@@ -28,6 +49,7 @@ class Section(Base):
     rows: Mapped[list["SectionRow"]] = relationship(
         "SectionRow", back_populates="section", cascade="all, delete"
     )
+    bolim: Mapped[Optional["Bolim"]] = relationship("Bolim", back_populates="sections")
 
 
 class SectionColumn(Base):
@@ -57,6 +79,9 @@ class SectionRow(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     section_id: Mapped[int] = mapped_column(Integer, ForeignKey("sections.id"), nullable=False)
     district_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("districts.id"), nullable=True)
+    period_year: Mapped[int | None] = mapped_column(Integer, nullable=True)   # e.g. 2024
+    period_month: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 1-12, None = annual
+    mfy_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

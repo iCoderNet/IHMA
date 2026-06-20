@@ -14,7 +14,7 @@ import Broadcast from './pages/superadmin/Broadcast'
 import Admins from './pages/superadmin/Admins'
 import Districts from './pages/superadmin/Districts'
 import AdminDashboard from './pages/admin/Dashboard'
-import MapView from './pages/superadmin/MapView'
+import IjtimoiyHodimlar from './pages/superadmin/IjtimoiyHodimlar'
 
 function RequireAuth({ children, role }) {
   const { user, isAuthenticated } = useAuthStore()
@@ -53,7 +53,8 @@ export default function App() {
           <Route path="broadcast" element={<Broadcast />} />
           <Route path="admins" element={<Admins />} />
           <Route path="districts" element={<Districts />} />
-          <Route path="map" element={<MapView />} />
+          <Route path="map" element={<Navigate to="/superadmin" replace />} />
+          <Route path="ijtimoiy-hodimlar" element={<IjtimoiyHodimlar />} />
         </Route>
 
         {/* Admin routes */}
@@ -66,7 +67,8 @@ export default function App() {
           <Route path="sections" element={<Sections />} />
           <Route path="sections/:id" element={<SectionDetail />} />
           <Route path="appeals" element={<Appeals />} />
-          <Route path="map" element={<MapView />} />
+          <Route path="map" element={<Navigate to="/admin" replace />} />
+          <Route path="ijtimoiy-hodimlar" element={<IjtimoiyHodimlar />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/login" replace />} />

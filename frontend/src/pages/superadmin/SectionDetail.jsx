@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, Plus, Trash2, Edit2, Upload, Download,
-  FileSpreadsheet, ChevronLeft, ChevronRight, Settings2, Eye, EyeOff
+  FileSpreadsheet, ChevronLeft, ChevronRight, Settings2, Eye, EyeOff,
+  Search, X, SlidersHorizontal
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import api from '../../services/api'
@@ -15,6 +16,15 @@ export default function SectionDetail() {
 
   const [page, setPage] = useState(1)
   const [districtId, setDistrictId] = useState('')
+  const [periodYear, setPeriodYear] = useState('')
+  const [periodMonth, setPeriodMonth] = useState('')
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(search); setPage(1) }, 350)
+    return () => clearTimeout(t)
+  }, [search])
   const [showImportModal, setShowImportModal] = useState(false)
   const [showColModal, setShowColModal] = useState(null) // null | 'create' | col
   const [showRowModal, setShowRowModal] = useState(null)
@@ -27,10 +37,16 @@ export default function SectionDetail() {
     queryFn: () => api.get(`/sections/${id}`).then(r => r.data),
   })
 
-  const { data: rowsData, isLoading: rowsLoading } = useQuery({
-    queryKey: ['section-rows', id, page, districtId],
+  const { data: rowsData, isLoading: rowsLoading, isFetching: rowsFetching } = useQuery({
+    queryKey: ['section-rows', id, page, districtId, periodYear, periodMonth, debouncedSearch],
     queryFn: () => api.get(`/sections/${id}/rows`, {
-      params: { page, size: 20, district_id: districtId || undefined }
+      params: {
+        page, size: 20,
+        district_id: districtId || undefined,
+        period_year: periodYear || undefined,
+        period_month: periodMonth || undefined,
+        search: debouncedSearch || undefined,
+      }
     }).then(r => r.data),
     keepPreviousData: true,
   })
@@ -211,33 +227,109 @@ export default function SectionDetail() {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex items-center gap-3">
-        <select
-          className="select select-bordered select-sm w-48"
-          value={districtId}
-          onChange={e => { setDistrictId(e.target.value); setPage(1) }}
-        >
-          <option value="">Barcha tumanlar</option>
-          {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-        </select>
-        <span className="text-sm text-base-content/50">Jami: {total} ta yozuv</span>
+      {/* ── Filter bar ── */}
+      <div className="bg-base-100 rounded-2xl border border-base-300/70 p-4 space-y-3">
+        {/* Search */}
+        <div className="relative">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-base-content/30 pointer-events-none" />
+          <input
+            className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-base-300 bg-base-200/50 text-sm outline-none
+                       focus:border-primary/50 focus:ring-2 focus:ring-primary/10 focus:bg-base-100 transition-all
+                       placeholder-base-content/25"
+            placeholder="MFY nomi yoki tuman bo'yicha qidirish..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 flex items-center justify-center rounded-full
+                         bg-base-content/10 hover:bg-base-content/20 text-base-content/50 transition-colors"
+            >
+              <X size={11} />
+            </button>
+          )}
+        </div>
+
+        {/* Select filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          <SlidersHorizontal size={13} className="text-base-content/30 flex-shrink-0" />
+          <select
+            className="select select-bordered select-sm flex-1 min-w-[160px] max-w-[200px]"
+            value={districtId}
+            onChange={e => { setDistrictId(e.target.value); setPage(1) }}
+          >
+            <option value="">Barcha tumanlar</option>
+            {districts.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+          <select
+            className="select select-bordered select-sm w-24"
+            value={periodYear}
+            onChange={e => { setPeriodYear(e.target.value); setPage(1) }}
+          >
+            <option value="">Yil</option>
+            {[2022,2023,2024,2025,2026].map(y => <option key={y} value={y}>{y}</option>)}
+          </select>
+          <select
+            className="select select-bordered select-sm w-32"
+            value={periodMonth}
+            onChange={e => { setPeriodMonth(e.target.value); setPage(1) }}
+          >
+            <option value="">Oy</option>
+            {['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentyabr','Oktyabr','Noyabr','Dekabr'].map((m,i) => (
+              <option key={i+1} value={i+1}>{m}</option>
+            ))}
+          </select>
+          {(districtId || periodYear || periodMonth || search) && (
+            <button
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-error/10 text-error hover:bg-error/20 transition-colors"
+              onClick={() => { setDistrictId(''); setPeriodYear(''); setPeriodMonth(''); setSearch(''); setPage(1) }}
+            >
+              <X size={11} /> Filterni tozalash
+            </button>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            {rowsFetching && !rowsLoading && (
+              <span className="loading loading-spinner loading-xs text-primary/50" />
+            )}
+            <span className="text-xs text-base-content/40 font-medium">
+              {total} ta yozuv
+            </span>
+          </div>
+        </div>
       </div>
 
-      {/* Table */}
+      {/* ── Table ── */}
       <div className="table-container">
         {rowsLoading ? (
-          <div className="flex justify-center py-12"><span className="loading loading-spinner text-primary" /></div>
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <span className="loading loading-spinner loading-md text-primary" />
+            <p className="text-xs text-base-content/30">Yuklanmoqda...</p>
+          </div>
         ) : rows.length === 0 ? (
-          <div className="text-center py-16 text-base-content/40">
-            <p className="text-sm">Hozircha ma'lumot yo'q</p>
+          <div className="text-center py-16">
+            <div className="w-12 h-12 rounded-2xl bg-base-200 flex items-center justify-center mx-auto mb-3">
+              <Search size={20} className="text-base-content/20" />
+            </div>
+            <p className="text-sm font-medium text-base-content/40">
+              {search || districtId || periodYear || periodMonth ? 'Qidiruv bo\'yicha ma\'lumot topilmadi' : 'Hozircha ma\'lumot yo\'q'}
+            </p>
+            {(search || districtId || periodYear || periodMonth) && (
+              <button
+                className="mt-3 text-xs text-primary hover:underline"
+                onClick={() => { setSearch(''); setDistrictId(''); setPeriodYear(''); setPeriodMonth(''); setPage(1) }}
+              >
+                Filtrni tozalash
+              </button>
+            )}
           </div>
         ) : (
-          <table className="table table-sm table-zebra w-full">
+          <table className="premium-table">
             <thead>
-              <tr className="bg-base-200 text-base-content/60 text-xs">
+              <tr>
                 <th className="w-10">#</th>
                 <th>Tuman</th>
+                <th>MFY nomi</th>
                 {columns.map(c => (
                   <th key={c.id || c.key}>{c.name}</th>
                 ))}
@@ -246,22 +338,36 @@ export default function SectionDetail() {
             </thead>
             <tbody>
               {rows.map((row, i) => (
-                <tr key={row.id} className="hover">
-                  <td className="text-base-content/40 text-xs">{(page - 1) * 20 + i + 1}</td>
-                  <td className="text-xs text-base-content/60">{row.district_name || '—'}</td>
+                <tr key={row.id} className="group">
+                  <td>
+                    <span className="num-display text-xs text-base-content/25">{(page - 1) * 20 + i + 1}</span>
+                  </td>
+                  <td>
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-base-200 text-xs font-medium text-base-content/60">
+                      {row.district_name || '—'}
+                    </span>
+                  </td>
+                  <td>
+                    <span className="text-xs text-base-content/70 font-medium">{row.mfy_name || '—'}</span>
+                  </td>
                   {columns.map(c => (
-                    <td key={c.key} className="text-sm max-w-[200px] truncate">
-                      {row.cells?.[c.key] ?? '—'}
+                    <td key={c.key}>
+                      <span className="num-display text-sm text-base-content/80">
+                        {row.cells?.[c.key] != null ? Number(row.cells[c.key]).toLocaleString('uz-UZ') : '—'}
+                      </span>
                     </td>
                   ))}
                   <td>
-                    <div className="flex gap-1">
-                      <button onClick={() => openEditRow(row)} className="btn btn-ghost btn-xs">
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => openEditRow(row)}
+                        className="btn btn-ghost btn-xs rounded-lg hover:bg-primary/10 hover:text-primary"
+                      >
                         <Edit2 size={12} />
                       </button>
                       <button
                         onClick={() => { if (confirm('O\'chirilsinmi?')) delRowMut.mutate(row.id) }}
-                        className="btn btn-ghost btn-xs text-error"
+                        className="btn btn-ghost btn-xs rounded-lg hover:bg-error/10 hover:text-error"
                       >
                         <Trash2 size={12} />
                       </button>
@@ -274,16 +380,104 @@ export default function SectionDetail() {
         )}
       </div>
 
-      {/* Pagination */}
+      {/* ── Pagination ── */}
       {pages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <button onClick={() => setPage(p => p - 1)} disabled={page === 1} className="btn btn-ghost btn-sm btn-circle">
-            <ChevronLeft size={16} />
-          </button>
-          <span className="text-sm text-base-content/60">{page} / {pages}</span>
-          <button onClick={() => setPage(p => p + 1)} disabled={page === pages} className="btn btn-ghost btn-sm btn-circle">
-            <ChevronRight size={16} />
-          </button>
+        <div className="flex items-center justify-between gap-4">
+          {/* Info */}
+          <p className="text-xs text-base-content/40 hidden sm:block">
+            {(page - 1) * 20 + 1}–{Math.min(page * 20, total)} / {total} ta yozuv
+          </p>
+
+          {/* Page buttons */}
+          <div className="flex items-center gap-1 mx-auto sm:mx-0">
+            {/* First */}
+            <button
+              onClick={() => setPage(1)}
+              disabled={page === 1}
+              className="btn btn-ghost btn-sm btn-circle text-base-content/50 disabled:opacity-30"
+              title="Birinchi"
+            >
+              <ChevronLeft size={14} className="relative" /><ChevronLeft size={14} className="-ml-2.5" />
+            </button>
+            <button
+              onClick={() => setPage(p => p - 1)}
+              disabled={page === 1}
+              className="btn btn-ghost btn-sm btn-circle disabled:opacity-30"
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            {/* Page numbers */}
+            {(() => {
+              const delta = 2
+              const range = []
+              const left = Math.max(2, page - delta)
+              const right = Math.min(pages - 1, page + delta)
+              range.push(1)
+              if (left > 2) range.push('...')
+              for (let i = left; i <= right; i++) range.push(i)
+              if (right < pages - 1) range.push('...')
+              if (pages > 1) range.push(pages)
+              return range.map((p, idx) =>
+                p === '...'
+                  ? <span key={`dots-${idx}`} className="px-1 text-base-content/30 text-sm select-none">···</span>
+                  : (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p)}
+                      className={`btn btn-sm btn-circle text-sm font-semibold transition-all ${
+                        page === p
+                          ? 'bg-primary text-primary-content border-primary hover:bg-primary/90'
+                          : 'btn-ghost text-base-content/60 hover:bg-base-200'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  )
+              )
+            })()}
+
+            <button
+              onClick={() => setPage(p => p + 1)}
+              disabled={page === pages}
+              className="btn btn-ghost btn-sm btn-circle disabled:opacity-30"
+            >
+              <ChevronRight size={16} />
+            </button>
+            {/* Last */}
+            <button
+              onClick={() => setPage(pages)}
+              disabled={page === pages}
+              className="btn btn-ghost btn-sm btn-circle text-base-content/50 disabled:opacity-30"
+              title="Oxirgi"
+            >
+              <ChevronRight size={14} className="relative" /><ChevronRight size={14} className="-ml-2.5" />
+            </button>
+          </div>
+
+          {/* Go to page */}
+          <div className="hidden sm:flex items-center gap-2 text-xs text-base-content/40">
+            <span>Sahifa:</span>
+            <input
+              type="number"
+              min={1}
+              max={pages}
+              defaultValue={page}
+              key={page}
+              onBlur={e => {
+                const v = parseInt(e.target.value)
+                if (v >= 1 && v <= pages) setPage(v)
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter') {
+                  const v = parseInt(e.target.value)
+                  if (v >= 1 && v <= pages) setPage(v)
+                }
+              }}
+              className="w-14 px-2 py-1 rounded-lg border border-base-300 bg-base-100 text-center outline-none focus:border-primary/50 text-xs"
+            />
+            <span>/ {pages}</span>
+          </div>
         </div>
       )}
 
@@ -417,8 +611,11 @@ function ImportModal({ sectionId, columns, districts, onClose, onSuccess }) {
     sheet_index: 0,
     skip_rows: 0,
     header_row: 0,
+    header_rows: 1,
     skip_columns: [],
     column_mapping: {},
+    period_year: new Date().getFullYear(),
+    period_month: new Date().getMonth() + 1,
   })
   const [isLoading, setIsLoading] = useState(false)
 
@@ -488,8 +685,11 @@ function ImportModal({ sectionId, columns, districts, onClose, onSuccess }) {
     fd.append('sheet_index', config.sheet_index)
     fd.append('skip_rows', config.skip_rows)
     fd.append('header_row', config.header_row)
+    fd.append('header_rows', config.header_rows)
     fd.append('skip_columns', JSON.stringify(config.skip_columns))
     fd.append('column_mapping', JSON.stringify(activeMapping))
+    if (config.period_year) fd.append('period_year', config.period_year)
+    if (config.period_month) fd.append('period_month', config.period_month)
     try {
       setIsLoading(true)
       const res = await api.post(`/sections/${sectionId}/excel/import`, fd)
@@ -529,7 +729,22 @@ function ImportModal({ sectionId, columns, districts, onClose, onSuccess }) {
                 <label className="label pb-1"><span className="label-text font-medium">Sheet</span></label>
                 <select className="select select-bordered select-sm"
                   value={config.sheet_index}
-                  onChange={e => setConfig(c => ({ ...c, sheet_index: parseInt(e.target.value) }))}>
+                  onChange={async e => {
+                    const idx = parseInt(e.target.value)
+                    setConfig(c => ({ ...c, sheet_index: idx, column_mapping: {} }))
+                    if (!file) return
+                    const fd2 = new FormData()
+                    fd2.append('file', file)
+                    fd2.append('sheet_index', idx)
+                    try {
+                      setIsLoading(true)
+                      const res2 = await api.post(`/sections/${sectionId}/excel/preview`, fd2)
+                      setPreview(res2.data)
+                      const autoMap = autoDetectMapping(res2.data.headers || [], columns)
+                      setConfig(c => ({ ...c, sheet_index: idx, header_row: 0, column_mapping: autoMap }))
+                    } catch { toast.error('Sheet yuklashda xato') }
+                    finally { setIsLoading(false) }
+                  }}>
                   {preview.sheet_names.map((s, i) => (
                     <option key={i} value={i}>{s}</option>
                   ))}
@@ -537,7 +752,7 @@ function ImportModal({ sectionId, columns, districts, onClose, onSuccess }) {
               </div>
             )}
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="form-control">
                 <label className="label pb-1"><span className="label-text text-sm font-medium">Tuman *</span></label>
                 <select className="select select-bordered select-sm"
@@ -554,10 +769,35 @@ function ImportModal({ sectionId, columns, districts, onClose, onSuccess }) {
                   onChange={e => setConfig(c => ({ ...c, skip_rows: parseInt(e.target.value) || 0 }))} />
               </div>
               <div className="form-control">
-                <label className="label pb-1"><span className="label-text text-sm font-medium">Header qator indeksi</span></label>
-                <input type="number" min={0} className="input input-bordered input-sm"
-                  value={config.header_row}
-                  onChange={e => setConfig(c => ({ ...c, header_row: parseInt(e.target.value) || 0 }))} />
+                <label className="label pb-1"><span className="label-text text-sm font-medium">Header qator(lar)</span></label>
+                <select className="select select-bordered select-sm"
+                  value={config.header_rows}
+                  onChange={e => setConfig(c => ({ ...c, header_rows: parseInt(e.target.value) }))}>
+                  <option value={1}>1 ta sarlavha qatori</option>
+                  <option value={2}>2 ta (birlashtirilgan)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Period */}
+            <div className="grid grid-cols-2 sm:grid-cols-2 gap-3">
+              <div className="form-control">
+                <label className="label pb-1"><span className="label-text text-sm font-medium">📅 Yil *</span></label>
+                <select className="select select-bordered select-sm"
+                  value={config.period_year}
+                  onChange={e => setConfig(c => ({ ...c, period_year: parseInt(e.target.value) }))}>
+                  {[2022,2023,2024,2025,2026].map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+              <div className="form-control">
+                <label className="label pb-1"><span className="label-text text-sm font-medium">📅 Oy *</span></label>
+                <select className="select select-bordered select-sm"
+                  value={config.period_month}
+                  onChange={e => setConfig(c => ({ ...c, period_month: parseInt(e.target.value) }))}>
+                  {['Yanvar','Fevral','Mart','Aprel','May','Iyun','Iyul','Avgust','Sentyabr','Oktyabr','Noyabr','Dekabr'].map((m,i) => (
+                    <option key={i+1} value={i+1}>{m}</option>
+                  ))}
+                </select>
               </div>
             </div>
 

@@ -65,12 +65,16 @@ def read_excel_preview(file_bytes: bytes, sheet_index: int = 0, max_rows: int = 
         })
 
     total = len(all_rows)
-    headers = [c for c in (all_rows[0] if all_rows else [])]
+    # Return first 4 rows as candidate header rows so frontend can inspect merged structure
+    candidate_headers = []
+    for i in range(min(4, len(all_rows))):
+        candidate_headers.append(all_rows[i])
 
     wb.close()
     return {
         "total_rows": total,
-        "headers": headers,
+        "headers": all_rows[0] if all_rows else [],
+        "candidate_headers": candidate_headers,   # for multi-row header detection
         "preview_rows": preview_rows,
         "sheet_names": sheet_names,
     }
@@ -81,13 +85,17 @@ def import_excel_rows(
     sheet_index: int,
     skip_rows: int,
     header_row_index: int,
+    header_rows: int,            # 1=single header row, 2=multi-row (merged cells)
     skip_columns: list[int],
     column_mapping: dict[int, str],  # excel_col_index -> section column key
 ) -> list[dict[str, Any]]:
     """
     Parse Excel and return list of row dicts {column_key: value}.
     skip_rows: rows to completely ignore at the top
-    header_row_index: 0-based index (from start of file, AFTER skip) for headers
+    header_row_index: 0-based index (from start of file, AFTER skip) for the FIRST header row
+    header_rows: how many rows form the header (1 or 2).
+        When 2, for each column the last non-empty value across both header rows is used
+        (handles Excel merged/split cells like "Shundan" → "Etim bolalar").
     """
     wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
     ws = wb.worksheets[sheet_index]
@@ -101,8 +109,8 @@ def import_excel_rows(
         return []
 
     results = []
-    # Data rows = everything after header
-    data_rows = all_rows[header_row_index + 1:]
+    # Data rows start after all header rows
+    data_rows = all_rows[header_row_index + header_rows:]
 
     for row in data_rows:
         if all(c is None for c in row):

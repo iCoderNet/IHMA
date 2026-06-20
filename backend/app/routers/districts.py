@@ -134,10 +134,32 @@ async def get_district_stats(
         )
     )).scalar()
 
-    # Per-section record counts
+    # Per-section record counts + jami sums
     sections = (await db.execute(
         select(Section).where(Section.is_active == True).order_by(Section.order)
     )).scalars().all()
+
+    # Fetch jami cell values for this district (all periods)
+    jami_rows = (await db.execute(
+        select(SectionRow.section_id, SectionCell.value)
+        .join(SectionCell, SectionCell.row_id == SectionRow.id)
+        .join(SectionColumn, SectionColumn.id == SectionCell.column_id)
+        .where(
+            SectionRow.district_id == district_id,
+            SectionColumn.key == 'jami',
+        )
+    )).fetchall()
+
+    import re as _re
+    jami_sums: dict[int, int] = {}
+    for row in jami_rows:
+        if row.value and str(row.value).strip():
+            try:
+                v = int(float(_re.sub(r"[\s,]", "", str(row.value))))
+                jami_sums[row.section_id] = jami_sums.get(row.section_id, 0) + v
+            except (ValueError, TypeError):
+                pass
+
     section_stats = []
     for s in sections:
         cnt = (await db.execute(
@@ -146,13 +168,21 @@ async def get_district_stats(
                 SectionRow.district_id == district_id,
             )
         )).scalar()
-        section_stats.append({"id": s.id, "name": s.name, "icon": s.icon, "color": s.color, "count": cnt})
+        section_stats.append({
+            "id": s.id,
+            "name": s.name,
+            "icon": s.icon,
+            "color": s.color,
+            "count": cnt,
+            "persons": jami_sums.get(s.id, 0),
+        })
 
     return {
         "district": {"id": d.id, "name": d.name},
         "appeals": {"total": appeals_total, "new": appeals_new, "resolved": appeals_resolved},
         "bot_users": bot_users,
         "sections": section_stats,
+        "total_persons": sum(jami_sums.values()),
     }
 
 

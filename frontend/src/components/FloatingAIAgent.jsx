@@ -388,7 +388,7 @@ export default function FloatingAIAgent() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-[9999] w-14 h-14 rounded-full bg-primary shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center justify-center text-primary-content"
+          className="fixed bottom-5 right-4 sm:bottom-6 sm:right-6 z-[9999] w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-primary shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-200 flex items-center justify-center text-primary-content"
           title="AI Yordamchi"
         >
           <Bot size={24} />
@@ -399,8 +399,11 @@ export default function FloatingAIAgent() {
       {/* Chat window */}
       {open && (
         <div className={clsx(
-          'fixed bottom-6 right-6 z-[9999] bg-base-100 rounded-2xl shadow-2xl border border-base-300 flex flex-col transition-all duration-300',
-          minimized ? 'w-72 h-14' : 'w-80 sm:w-96 h-[580px]',
+          'fixed z-[9999] bg-base-100 shadow-2xl border border-base-300 flex flex-col transition-all duration-300',
+          /* mobile: full-screen sheet from bottom; desktop: floating panel */
+          minimized
+            ? 'bottom-0 right-0 left-0 sm:bottom-6 sm:right-6 sm:left-auto w-full sm:w-72 h-14 rounded-t-2xl sm:rounded-2xl'
+            : 'bottom-0 right-0 left-0 sm:bottom-6 sm:right-6 sm:left-auto w-full sm:w-80 md:w-96 h-[80dvh] sm:h-[580px] rounded-t-2xl sm:rounded-2xl',
         )}>
 
           {/* Header */}

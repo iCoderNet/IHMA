@@ -73,6 +73,7 @@
     content: '';
     @apply absolute inset-0 opacity-0 transition-opacity duration-300;
     background: radial-gradient(ellipse at top left, hsl(var(--p) / 0.04), transparent 60%);
+    pointer-events: none;
   }
   .stat-card:hover::after {
     @apply opacity-100;
@@ -111,11 +112,11 @@
   /* ── Page header ──────────────────────────── */
   .page-header {
     font-family: 'Sora', sans-serif;
-    @apply text-2xl font-bold mb-1;
+    @apply text-xl lg:text-2xl font-bold mb-1;
     color: hsl(var(--bc));
   }
   .page-subheader {
-    @apply text-sm mb-6;
+    @apply text-xs lg:text-sm mb-4 lg:mb-6;
     color: hsl(var(--bc) / 0.5);
   }
 

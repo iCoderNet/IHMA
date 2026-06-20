@@ -3,6 +3,44 @@ from typing import Any
 from datetime import datetime
 
 
+class BolimCreate(BaseModel):
+    name: str
+    full_name: str
+    description: str | None = None
+    icon: str | None = None
+    color: str | None = None
+    order: int = 0
+
+
+class BolimOut(BaseModel):
+    id: int
+    name: str
+    full_name: str
+    description: str | None = None
+    icon: str | None = None
+    color: str | None = None
+    order: int
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class BolimWithSections(BolimOut):
+    sections: list["SectionOut"] = []
+
+
+class BolimUpdate(BaseModel):
+    name: str | None = None
+    full_name: str | None = None
+    description: str | None = None
+    icon: str | None = None
+    color: str | None = None
+    order: int | None = None
+    is_active: bool | None = None
+
+
+
 class ColumnCreate(BaseModel):
     name: str
     key: str | None = None  # optional — backend slugify(name) ishlatadi
@@ -42,6 +80,7 @@ class SectionCreate(BaseModel):
     icon: str | None = None
     color: str | None = None
     order: int = 0
+    bolim_id: int | None = None
 
 
 class SectionOut(BaseModel):
@@ -53,6 +92,8 @@ class SectionOut(BaseModel):
     color: str | None = None
     order: int
     is_active: bool
+    bolim_id: int | None = None
+    bolim_name: str | None = None
     created_at: datetime
     columns: list[ColumnOut] = []
 
@@ -68,6 +109,7 @@ class SectionUpdate(BaseModel):
     color: str | None = None
     order: int | None = None
     is_active: bool | None = None
+    bolim_id: int | None = None
 
 
 class RowData(BaseModel):
@@ -80,6 +122,8 @@ class RowOut(BaseModel):
     section_id: int
     district_id: int | None = None
     district_name: str | None = None
+    period_year: int | None = None
+    period_month: int | None = None
     order: int
     cells: dict[str, Any] = {}
     created_at: datetime
@@ -92,8 +136,11 @@ class ExcelImportConfig(BaseModel):
     district_id: int
     skip_rows: int = 0              # rows to skip at top
     header_row: int = 0             # 0-indexed row with headers (after skip)
+    header_rows: int = 1            # 1 = single header row, 2 = multi-row (merged cells)
     skip_columns: list[int] = []    # column indices to skip
     column_mapping: dict[str, str] = {}  # excel_col_index -> column_key
+    period_year: int | None = None
+    period_month: int | None = None
 
 
 class ImportPreviewRow(BaseModel):
@@ -106,3 +153,5 @@ class ImportPreview(BaseModel):
     headers: list[str | None]
     preview_rows: list[ImportPreviewRow]
     sheet_names: list[str]
+
+BolimWithSections.model_rebuild()

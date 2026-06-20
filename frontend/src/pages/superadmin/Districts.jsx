@@ -41,7 +41,7 @@ export default function Districts() {
 
   return (
     <div className="max-w-2xl space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="page-header">Tumanlar</h1>
           <p className="page-subheader">Andijon viloyati tumanlar ro'yxati</p>

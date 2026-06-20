@@ -10,9 +10,10 @@ import json
 from app.core.database import get_db
 from app.core.dependencies import get_current_user, get_superadmin
 from app.models.user import User
-from app.models.section import Section, SectionColumn, SectionRow, SectionCell
+from app.models.section import Section, SectionColumn, SectionRow, SectionCell, Bolim
 from app.models.district import District
 from app.schemas.section import (
+    BolimOut,
     SectionCreate, SectionOut, SectionUpdate,
     ColumnCreate, ColumnOut, ColumnUpdate,
     RowData, RowOut, ImportPreview,
@@ -32,6 +33,9 @@ def row_to_out(row: SectionRow, columns: list[SectionColumn]) -> dict:
         "section_id": row.section_id,
         "district_id": row.district_id,
         "district_name": row.district.name if row.district else None,
+        "mfy_name": row.mfy_name,
+        "period_year": row.period_year,
+        "period_month": row.period_month,
         "order": row.order,
         "cells": cells,
         "created_at": row.created_at,
@@ -42,16 +46,35 @@ def row_to_out(row: SectionRow, columns: list[SectionColumn]) -> dict:
 
 @router.get("", response_model=list[SectionOut])
 async def list_sections(
+    bolim_id: int | None = None,
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
-    result = await db.execute(
+    q = (
         select(Section)
         .where(Section.is_active == True)
         .options(selectinload(Section.columns))
         .order_by(Section.order, Section.id)
     )
-    return result.scalars().all()
+    if bolim_id is not None:
+        q = q.where(Section.bolim_id == bolim_id)
+    sections = (await db.execute(q)).scalars().all()
+
+    # Inject bolim_name
+    bolim_ids = {s.bolim_id for s in sections if s.bolim_id}
+    bolim_map: dict[int, str] = {}
+    if bolim_ids:
+        bolimlar = (await db.execute(
+            select(Bolim).where(Bolim.id.in_(bolim_ids))
+        )).scalars().all()
+        bolim_map = {b.id: b.name for b in bolimlar}
+
+    result = []
+    for s in sections:
+        out = SectionOut.model_validate(s)
+        out.bolim_name = bolim_map.get(s.bolim_id) if s.bolim_id else None
+        result.append(out)
+    return result
 
 
 @router.post("", response_model=SectionOut, status_code=201)
@@ -183,6 +206,9 @@ async def delete_column(
 async def list_rows(
     section_id: int,
     district_id: int | None = Query(None),
+    period_year: int | None = Query(None),
+    period_month: int | None = Query(None),
+    search: str | None = Query(None),
     page: int = Query(1, ge=1),
     size: int = Query(50, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
@@ -207,11 +233,35 @@ async def list_rows(
     )
     if district_id:
         q = q.where(SectionRow.district_id == district_id)
+    if period_year is not None:
+        q = q.where(SectionRow.period_year == period_year)
+    if period_month is not None:
+        q = q.where(SectionRow.period_month == period_month)
+    if search:
+        from sqlalchemy import or_
+        term = f"%{search}%"
+        dist_subq = select(District.id).where(District.name.ilike(term)).scalar_subquery()
+        q = q.where(or_(
+            SectionRow.mfy_name.ilike(term),
+            SectionRow.district_id.in_(dist_subq),
+        ))
 
     from sqlalchemy import func
     count_q = select(func.count()).select_from(SectionRow).where(SectionRow.section_id == section_id)
     if district_id:
         count_q = count_q.where(SectionRow.district_id == district_id)
+    if period_year is not None:
+        count_q = count_q.where(SectionRow.period_year == period_year)
+    if period_month is not None:
+        count_q = count_q.where(SectionRow.period_month == period_month)
+    if search:
+        from sqlalchemy import or_
+        term = f"%{search}%"
+        dist_subq = select(District.id).where(District.name.ilike(term)).scalar_subquery()
+        count_q = count_q.where(or_(
+            SectionRow.mfy_name.ilike(term),
+            SectionRow.district_id.in_(dist_subq),
+        ))
     total = (await db.execute(count_q)).scalar()
 
     q = q.offset((page - 1) * size).limit(size)
@@ -333,8 +383,11 @@ async def import_excel(
     sheet_index: int = Form(0),
     skip_rows: int = Form(0),
     header_row: int = Form(0),
+    header_rows: int = Form(1),
     skip_columns: str = Form("[]"),        # JSON array of col indices
     column_mapping: str = Form("{}"),      # JSON {col_index: column_key}
+    period_year: int | None = Form(None),
+    period_month: int | None = Form(None),
     db: AsyncSession = Depends(get_db),
     _: User = Depends(get_current_user),
 ):
@@ -346,7 +399,7 @@ async def import_excel(
 
     content = await file.read()
     try:
-        rows_data = import_excel_rows(content, sheet_index, skip_rows, header_row, skip_cols, col_map)
+        rows_data = import_excel_rows(content, sheet_index, skip_rows, header_row, header_rows, skip_cols, col_map)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Import error: {str(e)}")
 
@@ -358,7 +411,7 @@ async def import_excel(
 
     created = 0
     for row_data in rows_data:
-        row = SectionRow(section_id=section_id, district_id=district_id, order=created)
+        row = SectionRow(section_id=section_id, district_id=district_id, order=created, period_year=period_year, period_month=period_month)
         db.add(row)
         await db.flush()
         for key, value in row_data.items():

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { Sun, Moon, Bell, Key, LogOut, ChevronDown, Loader2, Eye, EyeOff, X } from 'lucide-react'
+import { Sun, Moon, Bell, Key, LogOut, ChevronDown, Loader2, Eye, EyeOff, X, Menu } from 'lucide-react'
 import toast from 'react-hot-toast'
 import useThemeStore from '../../store/themeStore'
 import useAuthStore from '../../store/authStore'
@@ -133,7 +133,7 @@ function Avatar({ initials, size = 'sm' }) {
 }
 
 /* ── Header ── */
-export default function Header({ title }) {
+export default function Header({ title, onMenuToggle }) {
   const { theme, toggleTheme } = useThemeStore()
   const { user, logout } = useAuthStore()
   const isDark = theme === 'ihma_dark'
@@ -152,7 +152,16 @@ export default function Header({ title }) {
 
   return (
     <>
-      <header className="h-[56px] flex items-center px-5 gap-4 flex-shrink-0 bg-base-100 border-b border-base-300">
+      <header className="h-[56px] flex items-center px-4 lg:px-5 gap-3 flex-shrink-0 bg-base-100 border-b border-base-300">
+        {/* Hamburger — mobile only */}
+        <button
+          onClick={onMenuToggle}
+          className="lg:hidden w-8 h-8 rounded-lg flex items-center justify-center text-base-content/60 hover:text-base-content hover:bg-base-200 transition-all flex-shrink-0"
+          aria-label="Menu"
+        >
+          <Menu size={18} strokeWidth={1.8} />
+        </button>
+
         {/* Page title */}
         <div className="flex-1 min-w-0">
           <h1 className="font-display font-semibold text-[15px] text-base-content leading-tight truncate">

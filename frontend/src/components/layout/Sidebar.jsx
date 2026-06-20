@@ -4,31 +4,31 @@ import useAuthStore from '../../store/authStore'
 import {
   LayoutDashboard, Users, FolderOpen, MessageSquare,
   Bot, ChevronLeft, LogOut, Database,
-  ShieldCheck, Send, Map,
+  ShieldCheck, Send, UserCheck,
 } from 'lucide-react'
 
 const SUPERADMIN_MENU = [
-  { label: 'Dashboard',        icon: LayoutDashboard, to: '/superadmin' },
-  { label: "Bo'limlar",        icon: FolderOpen,       to: '/superadmin/sections' },
-  { label: 'Murojaatlar',      icon: MessageSquare,    to: '/superadmin/appeals' },
-  { label: 'Xarita',           icon: Map,              to: '/superadmin/map' },
+  { label: 'Dashboard',          icon: LayoutDashboard, to: '/superadmin' },
+  { label: "Bo'limlar",          icon: FolderOpen,       to: '/superadmin/sections' },
+  { label: 'Murojaatlar',        icon: MessageSquare,    to: '/superadmin/appeals' },
+  { label: 'Ijtimoiy hodimlar',  icon: UserCheck,        to: '/superadmin/ijtimoiy-hodimlar' },
   { divider: true, label: 'Bot' },
-  { label: 'Bot sozlamalari',  icon: Bot,              to: '/superadmin/bot-settings' },
-  { label: 'Foydalanuvchilar', icon: Users,            to: '/superadmin/bot-users' },
-  { label: 'Broadcast',        icon: Send,             to: '/superadmin/broadcast' },
+  { label: 'Bot sozlamalari',    icon: Bot,              to: '/superadmin/bot-settings' },
+  { label: 'Foydalanuvchilar',   icon: Users,            to: '/superadmin/bot-users' },
+  { label: 'Broadcast',          icon: Send,             to: '/superadmin/broadcast' },
   { divider: true, label: 'Tizim' },
-  { label: 'Adminlar',         icon: ShieldCheck,      to: '/superadmin/admins' },
-  { label: 'Tumanlar',         icon: Database,         to: '/superadmin/districts' },
+  { label: 'Adminlar',           icon: ShieldCheck,      to: '/superadmin/admins' },
+  { label: 'Tumanlar',           icon: Database,         to: '/superadmin/districts' },
 ]
 
 const ADMIN_MENU = [
-  { label: 'Dashboard',   icon: LayoutDashboard, to: '/admin' },
-  { label: "Bo'limlar",   icon: FolderOpen,      to: '/admin/sections' },
-  { label: 'Murojaatlar', icon: MessageSquare,   to: '/admin/appeals' },
-  { label: 'Xarita',      icon: Map,             to: '/admin/map' },
+  { label: 'Dashboard',          icon: LayoutDashboard, to: '/admin' },
+  { label: "Bo'limlar",          icon: FolderOpen,      to: '/admin/sections' },
+  { label: 'Murojaatlar',        icon: MessageSquare,   to: '/admin/appeals' },
+  { label: 'Ijtimoiy hodimlar',  icon: UserCheck,       to: '/admin/ijtimoiy-hodimlar' },
 ]
 
-export default function Sidebar({ collapsed, onCollapse }) {
+export default function Sidebar({ collapsed, onCollapse, onLinkClick }) {
   const { user, logout } = useAuthStore()
   const isSuperAdmin = user?.role === 'superadmin'
   const menu = isSuperAdmin ? SUPERADMIN_MENU : ADMIN_MENU
@@ -58,9 +58,10 @@ export default function Sidebar({ collapsed, onCollapse }) {
             <p className="text-[10px] text-base-content/35 uppercase tracking-widest font-semibold">Platform</p>
           </div>
         )}
+        {/* Collapse toggle — hidden on mobile (user uses backdrop to close) */}
         <button
           onClick={onCollapse}
-          className="ml-auto w-6 h-6 rounded-lg flex items-center justify-center hover:bg-base-300 transition-colors text-base-content/40 hover:text-base-content flex-shrink-0"
+          className="hidden lg:flex ml-auto w-6 h-6 rounded-lg items-center justify-center hover:bg-base-300 transition-colors text-base-content/40 hover:text-base-content flex-shrink-0"
         >
           <ChevronLeft
             size={13}
@@ -88,6 +89,7 @@ export default function Sidebar({ collapsed, onCollapse }) {
               key={item.to}
               to={item.to}
               end={item.to === '/superadmin' || item.to === '/admin'}
+              onClick={onLinkClick}
               className={({ isActive }) =>
                 clsx('sidebar-link', isActive && 'active', collapsed && 'justify-center px-0')
               }

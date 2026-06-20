@@ -68,7 +68,7 @@ export default function Admins() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="page-header">Adminlar</h1>
           <p className="page-subheader">Tizim foydalanuvchilarini boshqarish</p>

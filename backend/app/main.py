@@ -6,8 +6,9 @@ from fastapi.staticfiles import StaticFiles
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
+from app.models import ijtimoiy_hodim as _  # noqa: ensure table is registered
 from app.core.database import create_tables, AsyncSessionLocal
-from app.routers import auth, sections, appeals, dashboard, bot_admin, districts, bot_webhook, ai_chat, voice
+from app.routers import auth, sections, appeals, dashboard, bot_admin, districts, bot_webhook, ai_chat, voice, bolim, ijtimoiy_hodimlar
 
 # Built frontend lives at  backend/static/  (vite outDir: '../backend/static')
 STATIC_DIR = Path(__file__).parent.parent / "static"
@@ -88,6 +89,8 @@ app.include_router(bot_admin.router, prefix="/api")
 app.include_router(bot_webhook.router, prefix="/api")
 app.include_router(ai_chat.router, prefix="/api")
 app.include_router(voice.router, prefix="/api")
+app.include_router(bolim.router, prefix="/api")
+app.include_router(ijtimoiy_hodimlar.router, prefix="/api")
 
 
 @app.get("/api/health")
